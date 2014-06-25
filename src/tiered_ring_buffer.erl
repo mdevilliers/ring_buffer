@@ -5,7 +5,8 @@
 			add/3, 
 			add/2, 
 			select/2, 
-			select/1
+			select_all/1,
+			delete/1
 		]).
 
 %% API
@@ -22,8 +23,11 @@ add(Buffer, Data, _EvictionFun) ->
 
 
 % http://stackoverflow.com/questions/3723064/sorting-erlang-records-in-a-list
-select(Buffer) ->
-	gen_server:call(Buffer, {select}).
+select_all(Buffer) ->
+	gen_server:call(Buffer, select_all).
 select(Buffer, Count) ->
 	gen_server:call(Buffer, {select, Count}).
+
+delete(Buffer) ->
+	gen_server:call(Buffer, delete).
 %% Internals
