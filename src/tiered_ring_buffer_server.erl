@@ -21,14 +21,20 @@ init([Name, Length]) ->
 handle_call(delete, _,  #state{table = TableId} = State) ->
   true = ets:delete(TableId),
   {stop, normal, shutdown_ok, State};
+
 handle_call({select, Count}, _, #state{table = TableId, length = Length, cursor = Cursor} = State) ->
- Cursor1 = Cursor rem Length,
- Range = get_looped_range(Length - 1 , Cursor1, Count),
+ Cursor1 = (Cursor ) rem Length,
+ Range = get_looped_range(Length, Cursor1 , Count),
+ io:format(user, "~nTable : ~p", [ets:tab2list(TableId)]),
  Results = lists:foldl(fun(Index, Acc) -> [{_,_, R }] = ets:slot(TableId, Index), [ R | Acc] end, [], Range),
  {reply, Results, State};
+
+
+
+
 handle_call(select_all, _, #state{table = TableId, length = Length, cursor = Cursor} = State) ->
  Cursor1 = Cursor rem Length,
- Range = get_looped_range(Length - 1, Cursor1),
+ Range = get_looped_range(Length - 1, Cursor1, Length),
  Results = lists:foldl(fun(Index, Acc) -> [{_,_, R }] = ets:slot(TableId, Index), [ R | Acc] end, [], Range),
  {reply, Results, State};
 handle_call({add, Data}, _, #state{table = TableId,
@@ -54,17 +60,29 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 % Private
+get_looped_range(Length, Position, MaxResults) when Length =:= MaxResults,
+                                                    is_integer(Length), 
+                                                    is_integer(Position), 
+                                                    is_integer(MaxResults) ->
+  Sequence = get_range(Length,MaxResults),
+  {One,Two} = lists:split(Position, Sequence),
+  Results = manipulate(One,Two),
+  %io:format(user, "~nOne : ~p, Two : ~p~n", [One,Two]),
+  %io:format(user, "~nLength : ~p,Position : ~p, MaxResults : ~p,  Results : ~p~n", [Length,Position, MaxResults, Results]),
+  Results;
 get_looped_range(Length, Position, MaxResults) when is_integer(Length), 
                                                     is_integer(Position), 
                                                     is_integer(MaxResults) ->
-  Sequence = get_looped_range(Length, Position),
-  {_,Results} = lists:split(MaxResults- 1, Sequence),
-  io:format(user, "Sequence : ~p, MaxResults : ~p, Results : ~p~n", [Sequence,MaxResults,Results]),
+  Sequence = get_range(Length,MaxResults),
+  {Results,_} = lists:split(MaxResults, Sequence),
+  io:format(user, "~nLength : ~p,Position : ~p, MaxResults : ~p, Sequence : ~p, Results : ~p~n", [Length,Position, MaxResults, Sequence, Results]),
   Results.
 
-get_looped_range(Length, Position) when is_integer(Length), 
-                                        is_integer(Position) ->
-  Range = lists:seq(0,Length),
-  {One,Two} = lists:split(Position , Range),
-  Sequence = lists:flatten([Two|One]),
-  Sequence.
+get_range(Length, MaxResults) when MaxResults =< Length,
+                                                      is_integer(Length) ->
+  lists:seq(0,Length - 1).
+
+manipulate([], Two) -> Two;
+manipulate(One, []) -> One;
+manipulate([H], Two) -> lists:reverse([H | lists:reverse(Two)]);
+manipulate(One, Two) -> lists:reverse(lists:flatten([lists:reverse(One) | lists:reverse(Two)])).
