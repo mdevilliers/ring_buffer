@@ -64,23 +64,32 @@ get_looped_range(Length, Position, MaxResults) when Length =:= MaxResults,
                                                     is_integer(Length), 
                                                     is_integer(Position), 
                                                     is_integer(MaxResults) ->
-  Sequence = get_range(Length,MaxResults),
+  Sequence = get_range(Length, Position, MaxResults),
   {One,Two} = lists:split(Position, Sequence),
   Results = manipulate(One,Two),
   %io:format(user, "~nOne : ~p, Two : ~p~n", [One,Two]),
-  %io:format(user, "~nLength : ~p,Position : ~p, MaxResults : ~p,  Results : ~p~n", [Length,Position, MaxResults, Results]),
+  io:format(user, "~nLength : ~p,Position : ~p, MaxResults : ~p, Sequence : ~p, Results : ~p~n", [Length,Position, MaxResults, Sequence, Results]),
   Results;
 get_looped_range(Length, Position, MaxResults) when is_integer(Length), 
                                                     is_integer(Position), 
                                                     is_integer(MaxResults) ->
-  Sequence = get_range(Length,MaxResults),
+  Sequence = get_range(Length, Position, MaxResults),
   {Results,_} = lists:split(MaxResults, Sequence),
   io:format(user, "~nLength : ~p,Position : ~p, MaxResults : ~p, Sequence : ~p, Results : ~p~n", [Length,Position, MaxResults, Sequence, Results]),
   Results.
 
-get_range(Length, MaxResults) when MaxResults =< Length,
+get_range(Length, Position, MaxResults) when MaxResults =< Length,
                                                       is_integer(Length) ->
-  lists:seq(0,Length - 1).
+  %lists:seq(0,Length - 1).
+  do_get_range(Length, Position-1, MaxResults, []).
+
+do_get_range(_, _, 0, Acc) ->
+  Acc;
+do_get_range(Length, -1, MaxResults,Acc) ->
+  do_get_range(Length,Length, MaxResults,Acc);
+do_get_range(Length, Position, MaxResults,Acc) ->
+  do_get_range(Length,Position - 1, MaxResults -1, [ Position|Acc]).
+
 
 manipulate([], Two) -> Two;
 manipulate(One, []) -> One;
