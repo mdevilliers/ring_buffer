@@ -75,7 +75,12 @@ reset_state_test() ->
 	tiered_ring_buffer_sup:start_link(),
 	{ok, Ref} = tiered_ring_buffer:new(reset_state_test),
 	ok = tiered_ring_buffer:add(Ref, 1 ),
-	1 = tiered_ring_buffer:count(Ref),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	6 = tiered_ring_buffer:count(Ref),
 	ok =  tiered_ring_buffer:clear(Ref),
 	0 = tiered_ring_buffer:count(Ref).
 

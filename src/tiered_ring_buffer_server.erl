@@ -57,14 +57,7 @@ handle_call({add, Data}, _, #state{    table = TableId,
                                        slots_full = Count } = State) ->
   Cursor1 = Cursor rem Length,
   ets:insert(TableId, {Cursor1, now(), Data}),
-
-  % track number of slots full
-  case Count =:= Length of
-    false ->
-      Count1 = Count + 1;
-    true ->
-      Count1 = Count 
-  end,
+  Count1 = track_full_slots(Length, Count),
   {reply, ok, State#state{cursor = Cursor + 1, slots_full = Count1}};
 
 handle_call(_Request, _From, State) ->
@@ -87,7 +80,6 @@ get_looped_range(Length, Position, MaxResults,TableId) when is_integer(Length),
                                                     is_integer(Position), 
                                                     is_integer(MaxResults) ->
   Sequence = get_range(Length, Position, MaxResults,TableId),
-  %io:format(user, "~n1. Length : ~p,Position : ~p, MaxResults : ~p, Sequence : ~p~n", [Length,Position, MaxResults, Sequence]),
   lists:reverse(Sequence).
 
 get_range(TotalSlots, Position, MaxResults,TableId) when MaxResults =< TotalSlots,
@@ -101,3 +93,11 @@ do_get_range(TotalSlots, -1, MaxResults, TableId, Acc) ->
 do_get_range(TotalSlots, Position, MaxResults, TableId, Acc) ->
   [{_,_, R }]  = ets:slot(TableId, Position),
   do_get_range(TotalSlots,Position - 1, MaxResults -1, TableId,[R|Acc]).
+
+track_full_slots(TotalSlots, CurrentSlot) ->
+  case TotalSlots =:= CurrentSlot of
+    false ->
+      CurrentSlot + 1;
+    true ->
+      CurrentSlot 
+  end.
