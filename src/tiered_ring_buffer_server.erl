@@ -94,10 +94,5 @@ do_get_range(TotalSlots, Position, MaxResults, TableId, Acc) ->
   [{_,_, R }]  = ets:slot(TableId, Position),
   do_get_range(TotalSlots,Position - 1, MaxResults -1, TableId,[R|Acc]).
 
-track_full_slots(TotalSlots, CurrentSlot) ->
-  case TotalSlots =:= CurrentSlot of
-    false ->
-      CurrentSlot + 1;
-    true ->
-      CurrentSlot 
-  end.
+track_full_slots(TotalSlots, TotalSlots) -> TotalSlots;
+track_full_slots(_, CurrentSlot) -> CurrentSlot + 1 .
