@@ -16,7 +16,13 @@ init([Name, Length]) ->
 	TableId = ets:new(Name, [ordered_set]),
 	[ets:insert(TableId, [{N, now(), <<>>}]) || N <- lists:seq(1, Length - 1)],
   	{ok, #state{table = TableId, length = Length,
-              name = Name, cursor = 0}}.
+              name = Name}}.
+
+
+handle_call(clear, _,  #state{table = TableId, length = Length, name = Name}) ->
+  true = ets:delete_all_objects(TableId),
+ {reply, ok, #state{table = TableId, length = Length,
+              name = Name}};
 
 handle_call(count, _,  #state{slots_full = Count} = State) ->
  {reply, Count, State};

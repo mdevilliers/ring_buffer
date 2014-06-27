@@ -8,7 +8,8 @@
 			select_all/1,
 			delete/1,
 			size/1,
-			count/1
+			count/1,
+			clear/1
 		]).
 
 %% API
@@ -35,3 +36,6 @@ size(Buffer) ->
 
 count(Buffer) ->
 	gen_server:call(Buffer, count).
+
+clear(Buffer) ->
+	gen_server:call(Buffer, clear).
