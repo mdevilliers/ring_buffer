@@ -64,6 +64,8 @@ invalid_size_test() ->
 	tiered_ring_buffer_sup:start_link(),
 	Entries = 5,
 	{ok, Ref} = tiered_ring_buffer:new(invalid_count_test, Entries),
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, 6),
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, -10),
 	{error, invalid_length} = tiered_ring_buffer:select(Ref, 99).
 
 get_default_size_test() ->
@@ -84,6 +86,31 @@ reset_state_test() ->
 	ok =  tiered_ring_buffer:clear(Ref),
 	0 = tiered_ring_buffer:count(Ref).
 
+range_test() ->
+	tiered_ring_buffer_sup:start_link(),
+	Entries = 5,
+	{ok, Ref} = tiered_ring_buffer:new(range_test, Entries),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	{error, invalid_length}  = tiered_ring_buffer:range(Ref, 1, 2),
+	{error, invalid_length}  = tiered_ring_buffer:range(Ref, 1, -999),
+	ok = tiered_ring_buffer:add(Ref, 2 ),
+	ok = tiered_ring_buffer:add(Ref, 3 ),
+	ok = tiered_ring_buffer:add(Ref, 4 ),
+	ok = tiered_ring_buffer:add(Ref, 5 ),
+	ok = tiered_ring_buffer:add(Ref, 6 ),
+	%  C
+	% [6,2,3,4,5]
+	[6] = tiered_ring_buffer:range(Ref, 1, 1),
+	[6,5] = tiered_ring_buffer:range(Ref, 1, 2),
+	[6,5,4] = tiered_ring_buffer:range(Ref, 1, 3),
+	[6,5,4,3] = tiered_ring_buffer:range(Ref, 1, 4),
+	[6,5,4,3,2] = tiered_ring_buffer:range(Ref, 1, 5),
+	{error, invalid_length}  = tiered_ring_buffer:range(Ref, 1, 6),
+	[4] = tiered_ring_buffer:range(Ref, 4, 1),
+	[4,3] = tiered_ring_buffer:range(Ref, 4, 2),
+	[4,3,2] = tiered_ring_buffer:range(Ref, 4, 3),
+	{error, loopback} = tiered_ring_buffer:range(Ref, 4, 4).
+	
 % TODO
 % starting_multiple_ring_buffers_of_the_same_name_test()->
 	% tiered_ring_buffer_sup:start_link(),

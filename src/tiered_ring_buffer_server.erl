@@ -11,54 +11,70 @@
 start_link(Name, Length) when is_integer(Length), is_atom(Name) ->
   gen_server:start(?MODULE, [Name, Length], []).
 
+% Private
 init([Name, Length]) ->
-
 	TableId = ets:new(Name, [ordered_set]),
-	[ets:insert(TableId, [{N, now(), <<>>}]) || N <- lists:seq(1, Length - 1)],
+	[ets:insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
   	{ok, #state{table = TableId, length = Length,
               name = Name}}.
 
-
 handle_call(clear, _,  #state{table = TableId, length = Length, name = Name}) ->
   true = ets:delete_all_objects(TableId),
- {reply, ok, #state{table = TableId, length = Length,
+  {reply, ok, #state{table = TableId, length = Length,
               name = Name}};
 
-handle_call(count, _,  #state{slots_full = Count} = State) ->
- {reply, Count, State};
+handle_call(count, _,  #state{slots_full = Count} = State) -> {reply, Count, State};
 
-handle_call(size, _,  #state{length = Length} = State) ->
- {reply, Length, State};
+handle_call(size, _,  #state{length = Length} = State) -> {reply, Length, State};
 
 handle_call(delete, _,  #state{table = TableId} = State) ->
   true = ets:delete(TableId),
   {stop, normal, shutdown_ok, State};
 
+
+handle_call({range, _, Count}, _, State) when Count < 0 ->
+ {reply, {error, invalid_length}, State};
+handle_call({range, _, Count}, _, #state{ slots_full = SlotsFull} = State) when Count > SlotsFull ->
+ {reply, {error, invalid_length}, State};
+
+ % handle_call({range, From, Count}, _, #state{ cursor = Cursor} = State) when From - Count =< Cursor ->
+ %  {reply, {error, loopback}, State};
+
+handle_call({range, _, Count}, _, #state{ length = Length} = State) when Count > Length ->
+ {reply, {error, invalid_length}, State};
+
+handle_call({range, From, Count}, _, #state{  table = TableId, 
+                                              length = Length } = State) ->
+ Cursor = From rem Length,
+ Results = select(Length, Cursor, Count, TableId, Cursor),
+ {reply, Results, State};
+
+handle_call({select, Count}, _, State) when Count < 0 ->
+ {reply, {error, invalid_length}, State};
 handle_call({select, Count}, _, #state{ length = Length} = State) when Count > Length ->
  {reply, {error, invalid_length}, State};
 
 handle_call({select, Count}, _, #state{ table = TableId, 
                                         length = Length, 
                                         cursor = Cursor } = State) ->
- Cursor1 = (Cursor ) rem Length,
- Range = get_looped_range(Length, Cursor1 , Count,TableId),
- {reply, Range, State};
+ Cursor1 = Cursor rem Length,
+ Results = select(Length, Cursor1, Count, TableId, Cursor1),
+ {reply, Results, State};
 
 handle_call(select_all, _, #state{  table = TableId, 
                                     length = Length, 
                                     cursor = Cursor } = State) ->
  Cursor1 = Cursor rem Length,
- Range = get_looped_range(Length, Cursor1, Length,TableId),
+ Range = select(Length, Cursor1, Length, TableId, Cursor1),
  {reply, Range, State};
 
 handle_call({add, Data}, _, #state{    table = TableId,
                                        length = Length, 
                                        cursor = Cursor,
                                        slots_full = Count } = State) ->
-  Cursor1 = Cursor rem Length,
-  ets:insert(TableId, {Cursor1, now(), Data}),
-  Count1 = track_full_slots(Length, Count),
-  {reply, ok, State#state{cursor = Cursor + 1, slots_full = Count1}};
+  Current = Cursor rem Length,
+  ets:insert(TableId, {Current, Data}),
+  {reply, ok, State#state{cursor = Cursor + 1, slots_full = track_full_slots(Length, Count)}};
 
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
@@ -75,24 +91,31 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-% Private
-get_looped_range(Length, Position, MaxResults,TableId) when is_integer(Length), 
+
+select(Length, Position, MaxResults, TableId, Head) when is_integer(Length), 
                                                     is_integer(Position), 
                                                     is_integer(MaxResults) ->
-  Sequence = get_range(Length, Position, MaxResults,TableId),
-  lists:reverse(Sequence).
+  case get_range(Length, Position, MaxResults, TableId, Head) of
+       Sequence when is_list(Sequence) ->
+          lists:reverse(Sequence);
+      Error ->
+          Error
+     end.   
 
-get_range(TotalSlots, Position, MaxResults,TableId) when MaxResults =< TotalSlots,
+get_range(TotalSlots, Position, MaxResults, TableId, Head) when MaxResults =< TotalSlots,
                                                       is_integer(TotalSlots) ->
-  do_get_range(TotalSlots, Position-1, MaxResults,TableId, []).
+  do_get_range(TotalSlots, Position-1, MaxResults, TableId, Head, []).
 
-do_get_range(_, _, 0,_, Acc) ->
+do_get_range(_, _, 0,_, _, Acc) ->
   Acc;
-do_get_range(TotalSlots, -1, MaxResults, TableId, Acc) ->
-  do_get_range(TotalSlots, TotalSlots-1, MaxResults, TableId, Acc);
-do_get_range(TotalSlots, Position, MaxResults, TableId, Acc) ->
-  [{_,_, R }]  = ets:slot(TableId, Position),
-  do_get_range(TotalSlots,Position - 1, MaxResults -1, TableId,[R|Acc]).
+do_get_range(TotalSlots, -1, MaxResults, TableId, Head, Acc) ->
+  do_get_range(TotalSlots, TotalSlots-1, MaxResults, TableId, Head, Acc);
+do_get_range(_, Position , _, _, Head, Acc) when Position =:= Head, length(Acc) =:= 0 ->
+   io:format(user, "~p ~p ~p~n", [Position,Head,Acc]),
+   {error, loopback};
+do_get_range(TotalSlots, Position, MaxResults, TableId, Head, Acc) ->
+  [{_, R }]  = ets:slot(TableId, Position),
+  do_get_range(TotalSlots,Position - 1, MaxResults -1, TableId, Head,[R|Acc]).
 
-track_full_slots(TotalSlots, TotalSlots) -> TotalSlots;
-track_full_slots(_, CurrentSlot) -> CurrentSlot + 1 .
+track_full_slots(TotalSlots, TotalSlots) when is_integer(TotalSlots)-> TotalSlots;
+track_full_slots(_, CurrentSlot) when is_integer(CurrentSlot)-> CurrentSlot + 1 .
