@@ -18,28 +18,30 @@ init([Name, Length]) ->
   	{ok, #state{table = TableId, length = Length,
               name = Name, cursor = 0}}.
 
+handle_call(size, _,  #state{length = Length} = State) ->
+ {reply, Length, State};
+
 handle_call(delete, _,  #state{table = TableId} = State) ->
   true = ets:delete(TableId),
   {stop, normal, shutdown_ok, State};
 
+handle_call({select, Count}, _, #state{length = Length} = State) when Count > Length ->
+ {reply, {error, invalid_length}, State};
+
 handle_call({select, Count}, _, #state{table = TableId, length = Length, cursor = Cursor} = State) ->
  Cursor1 = (Cursor ) rem Length,
  Range = get_looped_range(Length, Cursor1 , Count,TableId),
- %io:format(user, "~nTable : ~p", [ets:tab2list(TableId)]),
- %Results = lists:foldl(fun(Index, Acc) -> [{_,_, R }] = ets:slot(TableId, Index), [ R | Acc] end, [], Range),
  {reply, Range, State};
 
 handle_call(select_all, _, #state{table = TableId, length = Length, cursor = Cursor} = State) ->
  Cursor1 = Cursor rem Length,
  Range = get_looped_range(Length, Cursor1, Length,TableId),
- %Results = lists:foldl(fun(Index, Acc) -> [{_,_, R }] = ets:slot(TableId, Index), [ R | Acc] end, [], Range),
  {reply, Range, State};
+
 handle_call({add, Data}, _, #state{table = TableId,
                                        length = Length, cursor = Cursor} = State) ->
   Cursor1 = Cursor rem Length,
   ets:insert(TableId, {Cursor1, now(), Data}),
-
-  % io:format(user, "~p ~p ~n", [Data, Cursor1]),
   {reply, ok, State#state{cursor = Cursor + 1}};
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
