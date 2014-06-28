@@ -28,25 +28,8 @@ handle_call(count, _,  #state{slots_full = Count} = State) -> {reply, Count, Sta
 handle_call(size, _,  #state{length = Length} = State) -> {reply, Length, State};
 
 handle_call(delete, _,  #state{table = TableId} = State) ->
-  true = ets:delete(TableId),
+  remove_all(TableId),
   {stop, normal, shutdown_ok, State};
-
-
-% handle_call({range, _, Count}, _, State) when Count < 0 ->
-%  {reply, {error, invalid_length}, State};
-% handle_call({range, _, Count}, _, #state{ slots_full = SlotsFull} = State) when Count > SlotsFull ->
-%  {reply, {error, invalid_length}, State};
-% handle_call({range, From, Count}, _, #state{cursor = Cursor, length = Length} = State) when From - Count > Cursor rem Length ->
-%   io:format(user, "From : ~p Count : ~p Cursor : ~p Pos : ~p~n", [From,Count,Cursor, Cursor rem Length]),
-%   {reply, {error, invalid_lengthxx}, State};
-% handle_call({range, _, Count}, _, #state{ length = Length} = State) when Count > Length ->
-%  {reply, {error, invalid_length}, State};
-
-% handle_call({range, From, Count}, _, #state{  table = TableId, 
-%                                               length = Length } = State) ->
-%  Cursor = From rem Length,
-%  Results = scan(Length, Cursor, Count, TableId, Cursor),
-%  {reply, Results, State};
 
 handle_call({select, Count}, _, State) when Count < 0 ->
  {reply, {error, invalid_length}, State};
@@ -121,11 +104,11 @@ new(Name) ->
   ets:new(Name, [ordered_set]).
 
 get(TableId, Position) ->
-   [{_, Value }]  = ets:slot(TableId, Position),
-   Value.
+  [{_, Value }]  = ets:slot(TableId, Position),
+  Value.
 
 remove_all(TableId) ->
   true = ets:delete(TableId).
 
 insert(TableId, Value) ->
- ets:insert(TableId, Value).
+  ets:insert(TableId, Value).

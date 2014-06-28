@@ -5,17 +5,19 @@
 			add/2, 
 			select_all/1,
 			select/2, 
-			range/3,
 			delete/1,
 			size/1,
 			count/1,
-			clear/1
+			clear/1,
+			subscribe/2,
+			unsubscribe/2,
+			unsubscribe_all/1
 		]).
 
 %% API
 new(Name) when is_atom(Name) ->
 	new(Name, 512).
-new(Name, Length) when is_integer(Length), is_atom(Name) ->
+new(Name, Length) when is_atom(Name),is_integer(Length) ->
 	tiered_ring_buffer_sup:new_ring_buffer(Name, Length).
 
 add(Buffer, Data) ->
@@ -26,9 +28,6 @@ select_all(Buffer) ->
 
 select(Buffer, Count) ->
 	gen_server:call(Buffer, {select, Count}).
-
-range(Buffer, From, Count) ->
-	gen_server:call(Buffer, {range, From, Count}).
 
 delete(Buffer) ->
 	gen_server:call(Buffer, delete).
@@ -41,3 +40,10 @@ count(Buffer) ->
 
 clear(Buffer) ->
 	gen_server:call(Buffer, clear).
+
+subscribe(Buffer, Spec) ->
+	gen_server:call(Buffer, {subscribe, self(), Spec}).
+unsubscribe(Buffer, Spec) ->
+	gen_server:call(Buffer, {unsubscribe, self(), Spec}).
+unsubscribe_all(Buffer) ->
+	gen_server:call(Buffer, {unsubscribe_all, self()}).
