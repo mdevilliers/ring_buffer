@@ -20,30 +20,30 @@ new(Name) when is_atom(Name) ->
 new(Name, Length) when is_atom(Name),is_integer(Length) ->
 	tiered_ring_buffer_sup:new_ring_buffer(Name, Length).
 
-add(Buffer, Data) ->
+add(Buffer, Data) when is_pid(Buffer)->
 	gen_server:call(Buffer, {add, Data}).
 
-select_all(Buffer) ->
+select_all(Buffer) when is_pid(Buffer)->
 	gen_server:call(Buffer, select_all).
 
-select(Buffer, Count) ->
+select(Buffer, Count) when is_pid(Buffer), is_integer(Count)->
 	gen_server:call(Buffer, {select, Count}).
 
-delete(Buffer) ->
+delete(Buffer) when is_pid(Buffer)->
 	gen_server:call(Buffer, delete).
 
-size(Buffer) ->
+size(Buffer) when is_pid(Buffer)->
 	gen_server:call(Buffer, size).
 
-count(Buffer) ->
+count(Buffer) when is_pid(Buffer) ->
 	gen_server:call(Buffer, count).
 
-clear(Buffer) ->
+clear(Buffer) when is_pid(Buffer) ->
 	gen_server:call(Buffer, clear).
 
-subscribe(Buffer, Spec) ->
+subscribe(Buffer, Spec) when is_pid(Buffer) ->
 	gen_server:call(Buffer, {subscribe, self(), Spec}).
-unsubscribe(Buffer, Spec) ->
+unsubscribe(Buffer, Spec) when is_pid(Buffer) ->
 	gen_server:call(Buffer, {unsubscribe, self(), Spec}).
-unsubscribe_all(Buffer) ->
+unsubscribe_all(Buffer) when is_pid(Buffer) ->
 	gen_server:call(Buffer, {unsubscribe_all, self()}).
