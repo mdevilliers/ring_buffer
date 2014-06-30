@@ -15,7 +15,8 @@ start_link(Name, Length) when is_integer(Length), is_atom(Name) ->
 init([Name, Length]) ->
 	TableId = new(Name),
 	[insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
-  	{ok, #state{table = TableId, length = Length,
+  {ok, #state{table = TableId, 
+              length = Length,
               name = Name}}.
 
 handle_call(clear, _,  #state{table = TableId, length = Length, name = Name}) ->
@@ -34,6 +35,8 @@ handle_call(delete, _,  #state{table = TableId} = State) ->
 handle_call({select, Count}, _, State) when Count < 0 ->
  {reply, {error, invalid_length}, State};
 handle_call({select, Count}, _, #state{ length = Length} = State) when Count > Length ->
+ {reply, {error, invalid_length}, State};
+handle_call({select, Count}, _, #state{ length = Length, cursor = Cursor, slots_full = Slots_full} = State) when Count > Cursor rem Length, Slots_full < Length ->
  {reply, {error, invalid_length}, State};
 
 handle_call({select, Count}, _, #state{ table = TableId, 
@@ -85,7 +88,7 @@ scan(Length, Position, MaxResults, TableId, Head) when is_integer(Length),
   end.   
 
 get_range(TotalSlots, Position, MaxResults, TableId, Head) when MaxResults =< TotalSlots,
-                                                      is_integer(TotalSlots) ->
+                                                                is_integer(TotalSlots) ->
   do_get_range(TotalSlots, Position-1, MaxResults, TableId, Head, []).
 
 do_get_range(_, _, 0,_, _, Acc) ->
