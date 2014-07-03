@@ -15,8 +15,9 @@ start_link(Name, Length) when is_integer(Length), is_atom(Name) ->
 init([Name, Length]) ->
 	TableId = new(Name),
 	[insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
-  	{ok, #state{table = TableId, length = Length,
-              name = Name}}.
+  {ok, #state{  table = TableId, 
+                length = Length,
+                name = Name}}.
 
 handle_call(clear, _,  #state{table = TableId, length = Length, name = Name}) ->
   remove_all(TableId) ,
