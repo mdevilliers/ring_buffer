@@ -5,7 +5,8 @@
 -export ([start_link/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
--record(state, {table, length, name, cursor = 0, slots_full = 0 }).
+-record(state, {table, length, name, cursor = 0, slots_full = 0 , subscriptions = []}).
+-record (subscription, {pid , spec}).
 
 %% Public API
 start_link(Name, Length) when is_integer(Length), is_atom(Name) ->
@@ -61,6 +62,32 @@ handle_call({add, Data}, _, #state{    table = TableId,
   insert(TableId, {Current, Data}),
   {reply, ok, State#state{cursor = Cursor + 1, slots_full = track_full_slots(Length, Count)}};
 
+handle_call({subscribe, Pid, Spec}, _, #state{ subscriptions = Subscriptions} = State) ->
+  % need to monitor/link subscribee
+  NewSubscription =  #subscription{pid = Pid, spec = Spec},
+  State1 = State#state{ subscriptions = [NewSubscription | Subscriptions]},
+  {reply, ok, State1};
+
+handle_call({unsubscribe, Pid, Spec}, _, #state{ subscriptions = Subscriptions} = State) ->
+  % need to unmonitor/link subscribee
+  Subscription = #subscription{pid = Pid, spec = Spec},
+  Subscription1 = lists:delete(Subscription, Subscriptions) ,
+  State1 = State#state{ subscriptions = Subscription1},
+  {reply, ok, State1};
+
+handle_call({unsubscribe_all, _}, _, #state{ subscriptions = []} = State) ->
+  {reply, ok, State};
+handle_call({unsubscribe_all, Pid}, _, #state{ subscriptions = Subscriptions} = State) ->
+  % need to unmonitor/link subscribee
+  Subscriptions1 = lists:filter(fun(#subscription{pid = SubPid}) -> Pid =/= SubPid end, Subscriptions),
+  State1 = State#state{ subscriptions = Subscriptions1},
+  {reply, ok, State1};
+
+handle_call({list_subscriptions}, _, #state{ subscriptions = []} = State) ->
+  {reply, {empty}, State};
+handle_call({list_subscriptions}, _, #state{ subscriptions = Subscriptions} = State) ->
+  {reply, {ok, Subscriptions}, State};
+
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
@@ -79,12 +106,8 @@ code_change(_OldVsn, State, _Extra) ->
 scan(Length, Position, MaxResults, TableId, Head) when is_integer(Length), 
                                                     is_integer(Position), 
                                                     is_integer(MaxResults) ->
-  case get_range(Length, Position, MaxResults, TableId, Head) of
-       Sequence when is_list(Sequence) ->
-          lists:reverse(Sequence);
-      Error ->
-          Error
-  end.   
+  Sequence = get_range(Length, Position, MaxResults, TableId, Head),
+  lists:reverse(Sequence).  
 
 get_range(TotalSlots, Position, MaxResults, TableId, Head) when MaxResults =< TotalSlots,
                                                                 is_integer(TotalSlots) ->

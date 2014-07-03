@@ -11,7 +11,8 @@
 			clear/1,
 			subscribe/2,
 			unsubscribe/2,
-			unsubscribe_all/1
+			unsubscribe_all/1,
+			list_subscriptions/1
 		]).
 
 %% API
@@ -47,3 +48,5 @@ unsubscribe(Buffer, Spec) when is_pid(Buffer) ->
 	gen_server:call(Buffer, {unsubscribe, self(), Spec}).
 unsubscribe_all(Buffer) when is_pid(Buffer) ->
 	gen_server:call(Buffer, {unsubscribe_all, self()}).
+list_subscriptions(Buffer) when is_pid(Buffer) ->
+	gen_server:call(Buffer, {list_subscriptions}).
