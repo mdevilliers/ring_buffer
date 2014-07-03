@@ -76,7 +76,6 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-
 scan(Length, Position, MaxResults, TableId, Head) when is_integer(Length), 
                                                     is_integer(Position), 
                                                     is_integer(MaxResults) ->
