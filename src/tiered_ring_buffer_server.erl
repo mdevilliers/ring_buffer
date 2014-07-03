@@ -21,8 +21,9 @@ init([Name, Length]) ->
               name = Name}}.
 
 handle_call(clear, _,  #state{table = TableId, length = Length, name = Name}) ->
-  remove_all(TableId) ,
-  {reply, ok, #state{table = TableId, length = Length,
+  [insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
+  {reply, ok, #state{table = TableId, 
+              length = Length,
               name = Name}};
 
 handle_call(count, _,  #state{slots_full = Count} = State) -> {reply, Count, State};

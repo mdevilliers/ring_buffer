@@ -88,6 +88,9 @@ reset_state_test() ->
 	ok = tiered_ring_buffer:add(Ref, 1 ),
 	6 = tiered_ring_buffer:count(Ref),
 	ok =  tiered_ring_buffer:clear(Ref),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	1 = tiered_ring_buffer:count(Ref),
+	ok =  tiered_ring_buffer:clear(Ref),
 	0 = tiered_ring_buffer:count(Ref).
 
 % TODO
@@ -97,7 +100,7 @@ reset_state_test() ->
 	% {ok, Ref} = tiered_ring_buffer:new(three_test, 5),
  % 	ok.
 
- large_buffer_test() ->
+large_buffer_test() ->
 	tiered_ring_buffer_sup:start_link(),
 	Entries = 50000,
 	{ok, Ref} = tiered_ring_buffer:new(large_buffer_test, Entries),
