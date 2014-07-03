@@ -45,14 +45,14 @@ handle_call({select, Count}, _, #state{ table = TableId,
                                         length = Length, 
                                         cursor = Cursor } = State) ->
  Cursor1 = Cursor rem Length,
- Results = scan(Length, Cursor1, Count, TableId, Cursor1),
+ Results = scan(Length, Cursor1, Count, TableId),
  {reply, Results, State};
 
 handle_call(select_all, _, #state{  table = TableId, 
                                     length = Length, 
                                     cursor = Cursor } = State) ->
  Cursor1 = Cursor rem Length,
- Range = scan(Length, Cursor1, Length, TableId, Cursor1),
+ Range = scan(Length, Cursor1, Length, TableId),
  {reply, Range, State};
 
 handle_call({add, Data}, _, #state{    table = TableId,
@@ -104,23 +104,19 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-scan(Length, Position, MaxResults, TableId, Head) when is_integer(Length), 
-                                                    is_integer(Position), 
-                                                    is_integer(MaxResults) ->
-  Sequence = get_range(Length, Position, MaxResults, TableId, Head),
-  lists:reverse(Sequence).  
+scan(Length, Position, MaxResults, TableId) when is_integer(Length), 
+                                                 is_integer(Position), 
+                                                 is_integer(MaxResults),
+                                                 MaxResults =< Length ->
+  lists:reverse(get_range(Length, Position-1, MaxResults, TableId, [])).  
 
-get_range(TotalSlots, Position, MaxResults, TableId, Head) when MaxResults =< TotalSlots,
-                                                                is_integer(TotalSlots) ->
-  do_get_range(TotalSlots, Position-1, MaxResults, TableId, Head, []).
-
-do_get_range(_, _, 0,_, _, Acc) ->
+get_range(_, _, 0,_, Acc) ->
   Acc;
-do_get_range(TotalSlots, -1, MaxResults, TableId, Head, Acc) ->
-  do_get_range(TotalSlots, TotalSlots-1, MaxResults, TableId, Head, Acc);
-do_get_range(TotalSlots, Position, MaxResults, TableId, Head, Acc) ->
+get_range(TotalSlots, -1, MaxResults, TableId, Acc) ->
+  get_range(TotalSlots, TotalSlots-1, MaxResults, TableId, Acc);
+get_range(TotalSlots, Position, MaxResults, TableId, Acc) ->
   Value = get(TableId, Position),
-  do_get_range(TotalSlots,Position - 1, MaxResults -1, TableId, Head,[Value|Acc]).
+  get_range(TotalSlots,Position - 1, MaxResults -1, TableId,[Value|Acc]).
 
 track_full_slots(TotalSlots, TotalSlots) when is_integer(TotalSlots)-> TotalSlots;
 track_full_slots(_, CurrentSlot) when is_integer(CurrentSlot)-> CurrentSlot + 1 .
