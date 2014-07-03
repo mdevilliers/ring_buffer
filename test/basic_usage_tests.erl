@@ -64,9 +64,13 @@ invalid_size_test() ->
 	tiered_ring_buffer_sup:start_link(),
 	Entries = 5,
 	{ok, Ref} = tiered_ring_buffer:new(invalid_count_test, Entries),
-	{error, invalid_length} = tiered_ring_buffer:select(Ref, 6),
-	{error, invalid_length} = tiered_ring_buffer:select(Ref, -10),
-	{error, invalid_length} = tiered_ring_buffer:select(Ref, 99).
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, 1), % nothing written yet
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, 2), % nothing written yet
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, 3), % nothing written yet
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, 4), % nothing written yet
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, 5), % nothing written yet
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, -10), % negative number
+	{error, invalid_length} = tiered_ring_buffer:select(Ref, 99). % bigger than initial size 
 
 get_default_size_test() ->
 	tiered_ring_buffer_sup:start_link(),
