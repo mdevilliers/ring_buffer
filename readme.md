@@ -5,6 +5,8 @@ Implemetation of an ring buffer in erlang using ets tables as a backing store. A
 
 
 Setting up a ring buffer, adding a few messages and getting alerted when ring buffer is full
+
+
 ```
 ring_buffer_sup:start_link(),
 Subscription = {loop},
@@ -19,7 +21,7 @@ ok = ring_buffer:add(Ref, 1 ),
 ok = ring_buffer:add(Ref, 1 ),
 
 receive
-	{RingBufferName, Subscription} ->
+	{RingBufferName, Ref, Subscription} ->
 		?assert(true),
 	after
 	500 ->

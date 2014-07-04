@@ -169,7 +169,7 @@ emit( Message, Name, Subscriptions) when is_list(Subscriptions) ->
 
 emit_messages(_, _, []) -> ok ;
 emit_messages(Message, Name, Subscriptions) when is_list(Subscriptions) ->
-  lists:map(fun(#subscription{pid = Pid}) -> Pid ! { Name, Message } end, Subscriptions).
+  lists:map(fun(#subscription{pid = Pid}) -> Pid ! { Name, self(), Message } end, Subscriptions).
 
 is_valid_specification({loop}) -> true;
 is_valid_specification({empty}) -> true;

@@ -64,7 +64,7 @@ check_clear_event_emitted_test()->
 	ok = ring_buffer:clear(Ref),
 
 	receive
-		{RingBufferName, Subscription} ->
+		{RingBufferName, Ref, Subscription} ->
 			?assert(true)
 		after
 		500 ->
@@ -86,10 +86,10 @@ check_full_event_emitted_test()->
 	ok = ring_buffer:add(Ref, 1 ),
 
 	receive
-		{RingBufferName, Subscription} ->
+		{RingBufferName, Ref, Subscription} ->
 			?assert(true),
 				receive
-					{RingBufferName, Subscription} ->
+					{RingBufferName, Ref, Subscription} ->
 						?assert(true)
 				after
 					500 ->
