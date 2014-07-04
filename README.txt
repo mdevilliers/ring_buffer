@@ -1,6 +1,8 @@
 ring-buffer
 -----------
 
+[![Build Status](https://travis-ci.org/mdevilliers/ring_buffer.svg?branch=master)](https://travis-ci.org/mdevilliers/ring_buffer)
+
 Implemetation of an ring buffer in erlang using ets tables as a backing store. An interesting property is being able to subscribe to various events.
 
 
@@ -28,7 +30,3 @@ receive
 		?assert(false)
 end.
 ```
-
-TOOD :
-
-1. add travis build
