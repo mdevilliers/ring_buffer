@@ -39,7 +39,8 @@ handle_call({select, Count}, _, State) when Count < 0 ->
  {reply, {error, invalid_length}, State};
 handle_call({select, Count}, _, #state{ length = Length} = State) when Count > Length ->
  {reply, {error, invalid_length}, State};
-handle_call({select, Count}, _, #state{ length = Length, cursor = Cursor, slots_full = Slots_full} = State) when Count > Cursor rem Length, Slots_full < Length ->
+handle_call({select, Count}, _, #state{ length = Length, cursor = Cursor, slots_full = Slots_full} = State) 
+                                  when Count > Cursor rem Length, Slots_full < Length ->
  {reply, {error, invalid_length}, State};
 
 handle_call({select, Count}, _, #state{ table = TableId, 
@@ -59,17 +60,34 @@ handle_call(select_all, _, #state{  table = TableId,
 handle_call({add, Data}, _, #state{    table = TableId,
                                        length = Length, 
                                        cursor = Cursor,
-                                       slots_full = Count } = State) ->
+                                       slots_full = Count,
+                                       subscriptions = Subscriptions } = State) ->
   Current = Cursor rem Length,
   insert(TableId, {Current, Data}),
+
+  Next = Cursor + 1 rem Length,
+  case Next rem Length  of
+    0 ->
+      emit({loop}, Subscriptions);
+    _ -> ok
+  end,
+
   {reply, ok, State#state{cursor = Cursor + 1, slots_full = track_full_slots(Length, Count)}};
 
-%% subscription stuff
+%% subscriptions
 handle_call({subscribe, Pid, Spec}, _, #state{ subscriptions = Subscriptions} = State) ->
-  erlang:monitor(process, Pid), % TODO consider trcking pids
-  NewSubscription = #subscription{pid = Pid, spec = Spec},
-  State1 = State#state{ subscriptions = [NewSubscription | Subscriptions]},
-  {reply, ok, State1};
+
+  case is_valid_specification(Spec) of
+    false ->
+      Response = {invalid_specification},
+      State1 = State;
+    true ->
+      erlang:monitor(process, Pid), % TODO consider tracking pids
+      NewSubscription = #subscription{pid = Pid, spec = Spec},
+      State1 = State#state{ subscriptions = [NewSubscription | Subscriptions]},
+      Response = ok
+  end,
+  {reply, Response, State1};
 
 handle_call({unsubscribe, Pid, Spec}, _, #state{ subscriptions = Subscriptions} = State) ->
   State1 = State#state{ subscriptions = remove_subscription_from_list( #subscription{pid = Pid, spec = Spec} , Subscriptions)},
@@ -92,7 +110,7 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
-handle_info({'DOWN',_,process,Pid,normal},  #state{ subscriptions = Subscriptions} = State) ->
+handle_info({'DOWN', _, process, Pid, normal},  #state{ subscriptions = Subscriptions} = State) ->
   State1 = State#state{ subscriptions = remove_all_subscriptions_for_pid(Subscriptions, Pid)},
   {noreply, State1};
 handle_info(_Info, State) ->
@@ -144,5 +162,14 @@ remove_subscription_from_list(Subscription, Subscriptions) when is_record(Subscr
   lists:delete(Subscription, Subscriptions).
 
 emit(_, [])-> ok;
-emit({empty} = Message, Subscriptions)->
-  io:format(user, "~p ! ~p ~n", [Message, Subscriptions]).
+emit( Message, Subscriptions) when is_list(Subscriptions) ->
+  NeedToKnow =  lists:filter(fun(#subscription{spec = Spec}) -> Spec =:= Message end, Subscriptions),
+  emit_messages(Message, NeedToKnow).
+
+emit_messages(_, []) -> ok ;
+emit_messages(Message, Subscriptions) when is_list(Subscriptions) ->
+  lists:map(fun(#subscription{pid = Pid}) -> Pid ! Message end, Subscriptions).
+
+is_valid_specification({loop}) -> true;
+is_valid_specification({empty}) -> true;
+is_valid_specification(_) -> false.

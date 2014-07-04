@@ -6,25 +6,24 @@
 
 add_and_remove_subscription_test() ->
 	tiered_ring_buffer_sup:start_link(),
-	Entries = 2,
 	Me = self(),
 	
 	% set uo and check if empty
-	{ok, Ref} = tiered_ring_buffer:new(add_subscription_test, Entries),
+	{ok, Ref} = tiered_ring_buffer:new(add_subscription_test),
 	{empty} = tiered_ring_buffer:list_subscriptions(Ref),
 	
 	% add a subscription and unsubscribe - check empty
-	ok = tiered_ring_buffer:subscribe(Ref, {full}),
-	{ok,[{subscription, Me ,{full}}]} = tiered_ring_buffer:list_subscriptions(Ref),
-	ok = tiered_ring_buffer:unsubscribe(Ref, {full}),
+	ok = tiered_ring_buffer:subscribe(Ref, {loop}),
+	{ok,[{subscription, Me ,{loop}}]} = tiered_ring_buffer:list_subscriptions(Ref),
+	ok = tiered_ring_buffer:unsubscribe(Ref, {loop}),
     {empty} = tiered_ring_buffer:list_subscriptions(Ref),
 
 
     % make some more subscriptions including one in aother process
     ok = tiered_ring_buffer:subscribe(Ref, {empty}),
-    ok = tiered_ring_buffer:subscribe(Ref, {full}),
+    ok = tiered_ring_buffer:subscribe(Ref, {loop}),
     Pid = spawn(?MODULE, process_loop , [Ref]),
-    Pid ! {subscribe, {xxxx}},
+    Pid ! {subscribe, {empty}},
 
 	timer:sleep(100),
 	
@@ -37,7 +36,7 @@ add_and_remove_subscription_test() ->
 	ok = tiered_ring_buffer:unsubscribe_all(Ref),
 
 	% check there is one left
-	{ok,[{subscription,_,{xxxx}}]} = tiered_ring_buffer:list_subscriptions(Ref),
+	{ok,[{subscription,_,{empty}}]} = tiered_ring_buffer:list_subscriptions(Ref),
 
 	% kill it
 	Pid ! {die},
@@ -47,9 +46,8 @@ add_and_remove_subscription_test() ->
 	{empty} = tiered_ring_buffer:list_subscriptions(Ref).
 
 unsubscribe_all_when_empty_is_ok_test() ->
-	tiered_ring_buffer_sup:start_link(),
-	Entries = 2,	
-	{ok, Ref} = tiered_ring_buffer:new(unsubscribe_all_when_empty_is_ok_test, Entries),
+	tiered_ring_buffer_sup:start_link(),	
+	{ok, Ref} = tiered_ring_buffer:new(unsubscribe_all_when_empty_is_ok_test),
 	ok = tiered_ring_buffer:unsubscribe_all(Ref),
 	{empty} = tiered_ring_buffer:list_subscriptions(Ref),
 	ok = tiered_ring_buffer:unsubscribe_all(Ref),
@@ -58,13 +56,54 @@ unsubscribe_all_when_empty_is_ok_test() ->
 
 check_clear_event_emitted_test()->
 	tiered_ring_buffer_sup:start_link(),
+	Subscription = {empty},	
+	{ok, Ref} = tiered_ring_buffer:new(check_clear_event_emitted_test),
+
+	ok = tiered_ring_buffer:subscribe(Ref, Subscription),
+	ok = tiered_ring_buffer:clear(Ref),
+
+	receive
+		Subscription ->
+			?assert(true)
+		after
+		500 ->
+			?assert(false)
+	end.
+
+check_full_event_emitted_test()->
+	tiered_ring_buffer_sup:start_link(),
+	Subscription = {loop},
 	Entries = 2,	
-	{ok, Ref} = tiered_ring_buffer:new(check_clear_event_emitted_test, Entries),
-	Pid = spawn(?MODULE, process_loop , [Ref]),
-	timer:sleep(100),
-	Pid ! {subscribe, {empty}},
-	ok = tiered_ring_buffer:subscribe(Ref, {empty}),
-	ok =  tiered_ring_buffer:clear(Ref).
+	{ok, Ref} = tiered_ring_buffer:new(check_full_event_emitted_test, Entries),
+
+	ok = tiered_ring_buffer:subscribe(Ref, Subscription),
+	% add 4 messages .... check for 2 {full} messages
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+	ok = tiered_ring_buffer:add(Ref, 1 ),
+
+	receive
+		Subscription ->
+			?assert(true),
+				receive
+					Subscription ->
+						?assert(true)
+				after
+					500 ->
+					?assert(false)
+				end
+		after
+		500 ->
+			?assert(false)
+	end.
+
+invalid_and_valid_specifications_test() ->
+	tiered_ring_buffer_sup:start_link(),
+	{ok, Ref} = tiered_ring_buffer:new(invalid_and_valid_specifications_test),
+	ok = tiered_ring_buffer:subscribe(Ref,  {empty}),
+	ok = tiered_ring_buffer:subscribe(Ref,  {loop}),
+	{invalid_specification} = tiered_ring_buffer:subscribe(Ref, {xxxx}).
 
 % test helpers
 process_loop(Ref) ->
