@@ -63,25 +63,23 @@ handle_call({add, Data}, _, #state{    table = TableId,
   insert(TableId, {Current, Data}),
   {reply, ok, State#state{cursor = Cursor + 1, slots_full = track_full_slots(Length, Count)}};
 
+%% subscription stuff
 handle_call({subscribe, Pid, Spec}, _, #state{ subscriptions = Subscriptions} = State) ->
-  % need to monitor/link subscribee
+  erlang:monitor(process, Pid),
   NewSubscription =  #subscription{pid = Pid, spec = Spec},
   State1 = State#state{ subscriptions = [NewSubscription | Subscriptions]},
   {reply, ok, State1};
 
 handle_call({unsubscribe, Pid, Spec}, _, #state{ subscriptions = Subscriptions} = State) ->
-  % need to unmonitor/link subscribee
   Subscription = #subscription{pid = Pid, spec = Spec},
-  Subscription1 = lists:delete(Subscription, Subscriptions) ,
+  Subscription1 = lists:delete(Subscription, Subscriptions),
   State1 = State#state{ subscriptions = Subscription1},
   {reply, ok, State1};
 
 handle_call({unsubscribe_all, _}, _, #state{ subscriptions = []} = State) ->
   {reply, ok, State};
 handle_call({unsubscribe_all, Pid}, _, #state{ subscriptions = Subscriptions} = State) ->
-  % need to unmonitor/link subscribee
-  Subscriptions1 = lists:filter(fun(#subscription{pid = SubPid}) -> Pid =/= SubPid end, Subscriptions),
-  State1 = State#state{ subscriptions = Subscriptions1},
+  State1 = State#state{ subscriptions = remove_all_subscriptions_for_pid(Subscriptions, Pid)},
   {reply, ok, State1};
 
 handle_call({list_subscriptions}, _, #state{ subscriptions = []} = State) ->
@@ -95,6 +93,9 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
+handle_info({'DOWN',_,process,Pid,normal},  #state{ subscriptions = Subscriptions} = State) ->
+  State1 = State#state{ subscriptions = remove_all_subscriptions_for_pid(Subscriptions, Pid)},
+  {noreply, State1};
 handle_info(_Info, State) ->
   {noreply, State}.
 
@@ -103,6 +104,7 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
+
 
 scan(Length, Position, MaxResults, TableId) when is_integer(Length), 
                                                  is_integer(Position), 
@@ -134,3 +136,7 @@ delete(TableId) ->
 
 insert(TableId, Value) ->
   ets:insert(TableId, Value).
+
+% subsription helpers
+remove_all_subscriptions_for_pid(Subscriptions, Pid)->
+  lists:filter(fun(#subscription{pid = SubPid}) -> Pid =/= SubPid end, Subscriptions).
