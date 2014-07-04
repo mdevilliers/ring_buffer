@@ -31,7 +31,7 @@ handle_call(count, _,  #state{slots_full = Count} = State) -> {reply, Count, Sta
 handle_call(size, _,  #state{length = Length} = State) -> {reply, Length, State};
 
 handle_call(delete, _,  #state{table = TableId} = State) ->
-  remove_all(TableId),
+  delete(TableId),
   {stop, normal, shutdown_ok, State};
 
 handle_call({select, Count}, _, State) when Count < 0 ->
@@ -129,7 +129,7 @@ get(TableId, Position) ->
   [{_, Value }]  = ets:slot(TableId, Position),
   Value.
 
-remove_all(TableId) ->
+delete(TableId) ->
   true = ets:delete(TableId).
 
 insert(TableId, Value) ->
