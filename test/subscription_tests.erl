@@ -46,16 +46,6 @@ add_and_remove_subscription_test() ->
 	% check there are no subscriptions left
 	{empty} = tiered_ring_buffer:list_subscriptions(Ref).
 
-process_loop(Ref) ->
-	receive
-		{subscribe, SubscriptionInfo} ->
-			% io:format(user, "process ~p~n", [self()]),
-			ok = tiered_ring_buffer:subscribe(Ref, SubscriptionInfo),
-			process_loop(Ref);
-		{die} ->
-			ok
-	end.
-
 unsubscribe_all_when_empty_is_ok_test() ->
 	tiered_ring_buffer_sup:start_link(),
 	Entries = 2,	
@@ -66,3 +56,23 @@ unsubscribe_all_when_empty_is_ok_test() ->
 	{empty} = tiered_ring_buffer:list_subscriptions(Ref).
 
 
+check_clear_event_emitted_test()->
+	tiered_ring_buffer_sup:start_link(),
+	Entries = 2,	
+	{ok, Ref} = tiered_ring_buffer:new(check_clear_event_emitted_test, Entries),
+	Pid = spawn(?MODULE, process_loop , [Ref]),
+	timer:sleep(100),
+	Pid ! {subscribe, {empty}},
+	ok = tiered_ring_buffer:subscribe(Ref, {empty}),
+	ok =  tiered_ring_buffer:clear(Ref).
+
+% test helpers
+process_loop(Ref) ->
+	receive
+		{subscribe, SubscriptionInfo} ->
+			% io:format(user, "process ~p~n", [self()]),
+			ok = tiered_ring_buffer:subscribe(Ref, SubscriptionInfo),
+			process_loop(Ref);
+		{die} ->
+			ok
+	end.

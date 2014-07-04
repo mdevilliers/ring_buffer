@@ -20,8 +20,9 @@ init([Name, Length]) ->
               length = Length,
               name = Name}}.
 
-handle_call(clear, _,  #state{table = TableId, length = Length, name = Name}) ->
+handle_call(clear, _,  #state{table = TableId, length = Length, name = Name, subscriptions = Subscriptions}) ->
   [insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
+  emit({empty}, Subscriptions),
   {reply, ok, #state{table = TableId, 
               length = Length,
               name = Name}};
@@ -135,9 +136,13 @@ delete(TableId) ->
 insert(TableId, Value) ->
   ets:insert(TableId, Value).
 
-% subsription helpers
+% subscription helpers
 remove_all_subscriptions_for_pid(Subscriptions, Pid) when is_pid(Pid), is_list(Subscriptions)->
   lists:filter(fun(#subscription{pid = SubPid}) -> Pid =/= SubPid end, Subscriptions).
 
 remove_subscription_from_list(Subscription, Subscriptions) when is_record(Subscription, subscription), is_list(Subscriptions)->
   lists:delete(Subscription, Subscriptions).
+
+emit(_, [])-> ok;
+emit({empty} = Message, Subscriptions)->
+  io:format(user, "~p ! ~p ~n", [Message, Subscriptions]).
