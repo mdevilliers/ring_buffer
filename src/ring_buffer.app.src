@@ -1,9 +1,9 @@
-{application, tiered_ring_buffer,
+{application, ring_buffer,
  [
-  {description, "An Erlang tiered_ring_buffer library"},
+  {description, "An Erlang ring_buffer library"},
   {vsn, "1"},
   {modules, [
-             tiered_ring_buffer
+             ring_buffer
             ]},
   {registered, []},
   {applications, [

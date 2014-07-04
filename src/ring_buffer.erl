@@ -1,4 +1,4 @@
--module(tiered_ring_buffer).
+-module(ring_buffer).
 
 -export([	new/1,
 			new/2, 
@@ -19,7 +19,7 @@
 new(Name) when is_atom(Name) ->
 	new(Name, 512).
 new(Name, Length) when is_atom(Name),is_integer(Length) ->
-	tiered_ring_buffer_sup:new_ring_buffer(Name, Length).
+	ring_buffer_sup:new_ring_buffer(Name, Length).
 
 add(Buffer, Data) when is_pid(Buffer)->
 	gen_server:call(Buffer, {add, Data}).

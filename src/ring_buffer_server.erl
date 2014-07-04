@@ -1,4 +1,4 @@
--module (tiered_ring_buffer_server).
+-module (ring_buffer_server).
 
 -behaviour(gen_server).
 
