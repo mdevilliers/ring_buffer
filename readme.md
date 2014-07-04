@@ -8,8 +8,9 @@ Setting up a ring buffer, adding a few messages and getting alerted when ring bu
 ```
 ring_buffer_sup:start_link(),
 Subscription = {loop},
+RingBufferName = example,
 Entries = 2,	
-{ok, Ref} = ring_buffer:new(check_full_event_emitted_test, Entries),
+{ok, Ref} = ring_buffer:new( RingBufferName, Entries),
 
 ok = ring_buffer:subscribe(Ref, Subscription),
 
@@ -18,7 +19,7 @@ ok = ring_buffer:add(Ref, 1 ),
 ok = ring_buffer:add(Ref, 1 ),
 
 receive
-	Subscription ->
+	{RingBufferName, Subscription} ->
 		?assert(true),
 	after
 	500 ->

@@ -22,7 +22,7 @@ init([Name, Length]) ->
 
 handle_call(clear, _,  #state{table = TableId, length = Length, name = Name, subscriptions = Subscriptions}) ->
   [insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
-  emit({empty}, Subscriptions),
+  emit({empty}, Name, Subscriptions),
   {reply, ok, #state{table = TableId, 
               length = Length,
               name = Name}};
@@ -61,6 +61,7 @@ handle_call({add, Data}, _, #state{    table = TableId,
                                        length = Length, 
                                        cursor = Cursor,
                                        slots_full = Count,
+                                       name = Name,
                                        subscriptions = Subscriptions } = State) ->
   Current = Cursor rem Length,
   insert(TableId, {Current, Data}),
@@ -68,7 +69,7 @@ handle_call({add, Data}, _, #state{    table = TableId,
   Next = Cursor + 1 rem Length,
   case Next rem Length  of
     0 ->
-      emit({loop}, Subscriptions);
+      emit({loop}, Name, Subscriptions);
     _ -> ok
   end,
 
@@ -161,14 +162,14 @@ remove_all_subscriptions_for_pid(Subscriptions, Pid) when is_pid(Pid), is_list(S
 remove_subscription_from_list(Subscription, Subscriptions) when is_record(Subscription, subscription), is_list(Subscriptions)->
   lists:delete(Subscription, Subscriptions).
 
-emit(_, [])-> ok;
-emit( Message, Subscriptions) when is_list(Subscriptions) ->
+emit(_, _, [])-> ok;
+emit( Message, Name, Subscriptions) when is_list(Subscriptions) ->
   NeedToKnow =  lists:filter(fun(#subscription{spec = Spec}) -> Spec =:= Message end, Subscriptions),
-  emit_messages(Message, NeedToKnow).
+  emit_messages(Message, Name, NeedToKnow).
 
-emit_messages(_, []) -> ok ;
-emit_messages(Message, Subscriptions) when is_list(Subscriptions) ->
-  lists:map(fun(#subscription{pid = Pid}) -> Pid ! Message end, Subscriptions).
+emit_messages(_, _, []) -> ok ;
+emit_messages(Message, Name, Subscriptions) when is_list(Subscriptions) ->
+  lists:map(fun(#subscription{pid = Pid}) -> Pid ! { Name, Message } end, Subscriptions).
 
 is_valid_specification({loop}) -> true;
 is_valid_specification({empty}) -> true;

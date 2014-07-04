@@ -56,14 +56,15 @@ unsubscribe_all_when_empty_is_ok_test() ->
 
 check_clear_event_emitted_test()->
 	ring_buffer_sup:start_link(),
+	RingBufferName = check_clear_event_emitted_test, 
 	Subscription = {empty},	
-	{ok, Ref} = ring_buffer:new(check_clear_event_emitted_test),
+	{ok, Ref} = ring_buffer:new(RingBufferName),
 
 	ok = ring_buffer:subscribe(Ref, Subscription),
 	ok = ring_buffer:clear(Ref),
 
 	receive
-		Subscription ->
+		{RingBufferName, Subscription} ->
 			?assert(true)
 		after
 		500 ->
@@ -73,21 +74,22 @@ check_clear_event_emitted_test()->
 check_full_event_emitted_test()->
 	ring_buffer_sup:start_link(),
 	Subscription = {loop},
+	RingBufferName = check_full_event_emitted_test, 
 	Entries = 2,	
-	{ok, Ref} = ring_buffer:new(check_full_event_emitted_test, Entries),
+	{ok, Ref} = ring_buffer:new(RingBufferName, Entries),
 
 	ok = ring_buffer:subscribe(Ref, Subscription),
-	% add 4 messages .... check for 2 {full} messages
+	% add 4 messages .... check for 2 {loop} messages
 	ok = ring_buffer:add(Ref, 1 ),
 	ok = ring_buffer:add(Ref, 1 ),
 	ok = ring_buffer:add(Ref, 1 ),
 	ok = ring_buffer:add(Ref, 1 ),
 
 	receive
-		Subscription ->
+		{RingBufferName, Subscription} ->
 			?assert(true),
 				receive
-					Subscription ->
+					{RingBufferName, Subscription} ->
 						?assert(true)
 				after
 					500 ->
