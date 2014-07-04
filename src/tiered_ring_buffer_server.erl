@@ -65,15 +65,13 @@ handle_call({add, Data}, _, #state{    table = TableId,
 
 %% subscription stuff
 handle_call({subscribe, Pid, Spec}, _, #state{ subscriptions = Subscriptions} = State) ->
-  erlang:monitor(process, Pid),
-  NewSubscription =  #subscription{pid = Pid, spec = Spec},
+  erlang:monitor(process, Pid), % TODO consider trcking pids
+  NewSubscription = #subscription{pid = Pid, spec = Spec},
   State1 = State#state{ subscriptions = [NewSubscription | Subscriptions]},
   {reply, ok, State1};
 
 handle_call({unsubscribe, Pid, Spec}, _, #state{ subscriptions = Subscriptions} = State) ->
-  Subscription = #subscription{pid = Pid, spec = Spec},
-  Subscription1 = lists:delete(Subscription, Subscriptions),
-  State1 = State#state{ subscriptions = Subscription1},
+  State1 = State#state{ subscriptions = remove_subscription_from_list( #subscription{pid = Pid, spec = Spec} , Subscriptions)},
   {reply, ok, State1};
 
 handle_call({unsubscribe_all, _}, _, #state{ subscriptions = []} = State) ->
@@ -105,7 +103,7 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-
+% helpers
 scan(Length, Position, MaxResults, TableId) when is_integer(Length), 
                                                  is_integer(Position), 
                                                  is_integer(MaxResults),
@@ -138,5 +136,8 @@ insert(TableId, Value) ->
   ets:insert(TableId, Value).
 
 % subsription helpers
-remove_all_subscriptions_for_pid(Subscriptions, Pid)->
+remove_all_subscriptions_for_pid(Subscriptions, Pid) when is_pid(Pid), is_list(Subscriptions)->
   lists:filter(fun(#subscription{pid = SubPid}) -> Pid =/= SubPid end, Subscriptions).
+
+remove_subscription_from_list(Subscription, Subscriptions) when is_record(Subscription, subscription), is_list(Subscriptions)->
+  lists:delete(Subscription, Subscriptions).

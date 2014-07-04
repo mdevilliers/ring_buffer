@@ -53,7 +53,6 @@ process_loop(Ref) ->
 			ok = tiered_ring_buffer:subscribe(Ref, SubscriptionInfo),
 			process_loop(Ref);
 		{die} ->
-			io:format(user, "DIE process ~p~n", [self()]),
 			ok
 	end.
 
