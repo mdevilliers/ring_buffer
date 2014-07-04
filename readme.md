@@ -28,3 +28,7 @@ receive
 		?assert(false)
 end.
 ```
+
+TOOD :
+
+1. add travis build
