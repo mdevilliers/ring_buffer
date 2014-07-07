@@ -1,5 +1,7 @@
 -module (basic_usage_tests).
 
+-export ([large_buffer/0]).
+
 -include_lib("eunit/include/eunit.hrl").
 
 basic_test() ->
@@ -100,7 +102,12 @@ reset_state_test() ->
 	% {ok, Ref} = ring_buffer:new(three_test, 5),
  % 	ok.
 
-large_buffer_test() ->
+large_test_test() ->
+    {timeout, 30, fun() -> 
+                 large_buffer()
+          end }.
+
+large_buffer() ->
 	ring_buffer_sup:start_link(),
 	Entries = 50000,
 	{ok, Ref} = ring_buffer:new(large_buffer_test, Entries),
