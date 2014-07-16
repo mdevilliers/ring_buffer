@@ -76,7 +76,7 @@ invalid_size_test() ->
 
 get_default_size_test() ->
 	ring_buffer_sup:start_link(),
-	{ok, Ref} = ring_buffer:new(invalid_count_test),
+	{ok, Ref} = ring_buffer:new(get_default_size_test),
 	512 = ring_buffer:size(Ref).
 
 reset_state_test() ->
@@ -95,12 +95,21 @@ reset_state_test() ->
 	ok =  ring_buffer:clear(Ref),
 	0 = ring_buffer:count(Ref).
 
-% TODO
-% starting_multiple_ring_buffers_of_the_same_name_test()->
-	% ring_buffer_sup:start_link(),
-	% {ok, Ref} = ring_buffer:new(three_test, 5),
-	% {ok, Ref} = ring_buffer:new(three_test, 5),
- % 	ok.
+
+starting_multiple_ring_buffers_of_the_same_name_test()->
+	ring_buffer_sup:start_link(),
+	{ok, Ref} = ring_buffer:new(starting_multiple_ring_buffers_of_the_same_name_test, 5),
+	{ok, Ref} = ring_buffer:new(starting_multiple_ring_buffers_of_the_same_name_test, 5),
+	{ok, Ref} = ring_buffer:new(starting_multiple_ring_buffers_of_the_same_name_test, 5),
+	{ok, Ref} = ring_buffer:new(starting_multiple_ring_buffers_of_the_same_name_test, 5),
+	{ok, Ref} = ring_buffer:new(starting_multiple_ring_buffers_of_the_same_name_test, 5),
+	{ok, Ref} = ring_buffer:find(starting_multiple_ring_buffers_of_the_same_name_test),
+ 	ok.
+
+exists_on_non_existent_buffer_test() ->
+	undefined = ring_buffer:find(does_not_exist).
+
+
 
 large_test_test() ->
     {timeout, 30, fun() -> 

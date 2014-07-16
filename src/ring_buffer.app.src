@@ -2,7 +2,7 @@
  [
   {description, "An Erlang ring_buffer library"},
   {vsn, "1.0.0"},
-   {mod,{ring_buffer_app,[]}},
+  {mod,{ring_buffer_app,[]}},
   {registered, [ring_buffer_sup]},
   {applications, [
                   kernel,

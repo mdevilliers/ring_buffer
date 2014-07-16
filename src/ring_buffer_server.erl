@@ -143,7 +143,7 @@ track_full_slots(_, CurrentSlot) when is_integer(CurrentSlot)-> CurrentSlot + 1 
 
 % ets implementation
 new(Name) ->
-  ets:new(Name, [ordered_set]).
+  ets:new(Name, [ordered_set, named_table]).
 
 get(TableId, Position) ->
   [{_, Value }]  = ets:slot(TableId, Position),

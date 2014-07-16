@@ -9,6 +9,7 @@
 			size/1,
 			count/1,
 			clear/1,
+			find/1,
 			subscribe/2,
 			unsubscribe/2,
 			unsubscribe_all/1,
@@ -19,7 +20,11 @@
 new(Name) when is_atom(Name) ->
 	new(Name, 512).
 new(Name, Length) when is_atom(Name),is_integer(Length) ->
-	ring_buffer_sup:new_ring_buffer(Name, Length).
+	case find(Name) of
+		undefined ->
+			ring_buffer_sup:new_ring_buffer(Name, Length);
+		{ok, Pid} -> {ok, Pid}
+	end.
 
 add(Buffer, Data) when is_pid(Buffer)->
 	gen_server:call(Buffer, {add, Data}).
@@ -41,6 +46,13 @@ count(Buffer) when is_pid(Buffer) ->
 
 clear(Buffer) when is_pid(Buffer) ->
 	gen_server:call(Buffer, clear).
+
+find(Name) when is_atom(Name) ->
+	case ets:info(Name, owner) of
+		undefined ->
+			undefined;
+		Pid -> {ok, Pid}
+	end.
 
 subscribe(Buffer, Spec) when is_pid(Buffer) ->
 	gen_server:call(Buffer, {subscribe, self(), Spec}).
