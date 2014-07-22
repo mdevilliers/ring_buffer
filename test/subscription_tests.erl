@@ -100,6 +100,51 @@ check_full_event_emitted_test()->
 			?assert(false)
 	end.
 
+check_every_event_emitted_test() ->
+	ring_buffer_sup:start_link(),
+	Subscription = {every,5},
+	RingBufferName = check_every_event_emitted_test, 
+	Entries = 10,	
+	{ok, Ref} = ring_buffer:new(RingBufferName, Entries),
+
+	ok = ring_buffer:subscribe(Ref, Subscription),
+
+	ok = ring_buffer:add(Ref, 1 ),
+	ok = ring_buffer:add(Ref, 1 ),
+	ok = ring_buffer:add(Ref, 1 ),
+	ok = ring_buffer:add(Ref, 1 ),
+
+	% there shouldn't be a message
+	receive
+		{RingBufferName, Ref, Subscription} ->
+			?assert(false)
+		after
+		100 ->
+			?assert(true)
+	end,
+
+	ok = ring_buffer:add(Ref, 1 ),
+
+	% there should be a message
+	receive
+		{RingBufferName, Ref, Subscription} ->
+			?assert(true)
+		after
+		500 ->
+			?assert(false)
+	end,
+
+	ok = ring_buffer:add(Ref, 1 ),
+
+	% there shouldn't be a message
+	receive
+		{RingBufferName, Ref, Subscription} ->
+			?assert(false)
+		after
+		100 ->
+			?assert(true)
+	end.
+
 invalid_and_valid_specifications_test() ->
 	ring_buffer_sup:start_link(),
 	{ok, Ref} = ring_buffer:new(invalid_and_valid_specifications_test),

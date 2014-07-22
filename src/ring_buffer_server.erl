@@ -22,7 +22,7 @@ init([Name, Length]) ->
 
 handle_call(clear, _,  #state{table = TableId, length = Length, name = Name, subscriptions = Subscriptions}) ->
   [insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
-  emit({empty}, Name, Subscriptions),
+  emit({empty}, Name, 1, Subscriptions),
   {reply, ok, #state{table = TableId, 
               length = Length,
               name = Name}};
@@ -67,9 +67,11 @@ handle_call({add, Data}, _, #state{    table = TableId,
   insert(TableId, {Current, Data}),
 
   Next = Cursor + 1 rem Length,
+
+  emit({every}, Name, Next, Subscriptions),
   case Next rem Length  of
     0 ->
-      emit({loop}, Name, Subscriptions);
+      emit({loop}, Name, Next, Subscriptions);
     _ -> ok
   end,
 
@@ -146,7 +148,7 @@ new(Name) ->
   ets:new(Name, [ordered_set, named_table]).
 
 get(TableId, Position) ->
-  [{_, Value }]  = ets:slot(TableId, Position),
+  [{_, Value }] = ets:slot(TableId, Position),
   Value.
 
 delete(TableId) ->
@@ -156,21 +158,34 @@ insert(TableId, Value) ->
   ets:insert(TableId, Value).
 
 % subscription helpers
-remove_all_subscriptions_for_pid(Subscriptions, Pid) when is_pid(Pid), is_list(Subscriptions)->
+remove_all_subscriptions_for_pid(Subscriptions, Pid) when is_pid(Pid), is_list(Subscriptions) ->
   lists:filter(fun(#subscription{pid = SubPid}) -> Pid =/= SubPid end, Subscriptions).
 
-remove_subscription_from_list(Subscription, Subscriptions) when is_record(Subscription, subscription), is_list(Subscriptions)->
+remove_subscription_from_list(Subscription, Subscriptions) when is_record(Subscription, subscription), is_list(Subscriptions) ->
   lists:delete(Subscription, Subscriptions).
 
-emit(_, _, [])-> ok;
-emit( Message, Name, Subscriptions) when is_list(Subscriptions) ->
-  NeedToKnow =  lists:filter(fun(#subscription{spec = Spec}) -> Spec =:= Message end, Subscriptions),
-  emit_messages(Message, Name, NeedToKnow).
+emit(_, _, _,[])-> ok;
+emit(Message, Name, Current, Subscriptions) when is_list(Subscriptions) ->
+  NeedToKnow = filter_subscriptions_by_type(Message, Current, Subscriptions),
+  emit_messages(Name, NeedToKnow).
 
-emit_messages(_, _, []) -> ok ;
-emit_messages(Message, Name, Subscriptions) when is_list(Subscriptions) ->
-  lists:map(fun(#subscription{pid = Pid}) -> Pid ! { Name, self(), Message } end, Subscriptions).
+filter_subscriptions_by_type({every}, Current, Subscriptions) when is_integer(Current),
+                                                                   is_list(Subscriptions) ->
+  lists:filter(fun(#subscription{spec = Spec}) -> 
+                case Spec of
+                   {every, T} ->  Current rem T =:= 0 ;
+                   _ -> false
+                end
+              end, Subscriptions);
+
+filter_subscriptions_by_type(Message, _, Subscriptions) when is_list(Subscriptions)->
+  lists:filter(fun(#subscription{spec = Spec}) -> Spec =:= Message end, Subscriptions).
+
+emit_messages(_, []) -> ok ;
+emit_messages(Name, Subscriptions) when is_list(Subscriptions) ->
+  lists:map(fun(#subscription{pid = Pid, spec= Spec}) -> Pid ! { Name, self(), Spec } end, Subscriptions).
 
 is_valid_specification({loop}) -> true;
 is_valid_specification({empty}) -> true;
+is_valid_specification({every, N}) when is_integer(N) -> true;
 is_valid_specification(_) -> false.
