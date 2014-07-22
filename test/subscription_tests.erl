@@ -110,35 +110,35 @@ check_every_event_emitted_test() ->
 	ok = ring_buffer:subscribe(Ref, Subscription),
 
 	ok = ring_buffer:add(Ref, 1 ),
-	ok = ring_buffer:add(Ref, 1 ),
-	ok = ring_buffer:add(Ref, 1 ),
-	ok = ring_buffer:add(Ref, 1 ),
+	ok = ring_buffer:add(Ref, 2 ),
+	ok = ring_buffer:add(Ref, 3 ),
+	ok = ring_buffer:add(Ref, 4 ),
 
 	% there shouldn't be a message
 	receive
-		{RingBufferName, Ref, Subscription} ->
+		{RingBufferName, Ref, Subscription,_} ->
 			?assert(false)
 		after
 		100 ->
 			?assert(true)
 	end,
 
-	ok = ring_buffer:add(Ref, 1 ),
+	ok = ring_buffer:add(Ref, 5 ),
 
 	% there should be a message
 	receive
-		{RingBufferName, Ref, Subscription} ->
+		{RingBufferName, Ref, Subscription, [5,4,3,2,1]} ->
 			?assert(true)
 		after
 		500 ->
 			?assert(false)
 	end,
 
-	ok = ring_buffer:add(Ref, 1 ),
+	ok = ring_buffer:add(Ref, 6 ),
 
 	% there shouldn't be a message
 	receive
-		{RingBufferName, Ref, Subscription} ->
+		{RingBufferName, Ref, Subscription,_} ->
 			?assert(false)
 		after
 		100 ->

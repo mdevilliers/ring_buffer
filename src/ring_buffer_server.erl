@@ -4,6 +4,7 @@
 
 -export ([start_link/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-export ([emit_message/4]).
 
 -record(state, {table, length, name, cursor = 0, slots_full = 0 , subscriptions = []}).
 -record (subscription, {pid , spec}).
@@ -183,7 +184,12 @@ filter_subscriptions_by_type(Message, _, Subscriptions) when is_list(Subscriptio
 
 emit_messages(_, []) -> ok ;
 emit_messages(Name, Subscriptions) when is_list(Subscriptions) ->
-  lists:map(fun(#subscription{pid = Pid, spec= Spec}) -> Pid ! { Name, self(), Spec } end, Subscriptions).
+  lists:map(fun(#subscription{pid = Pid, spec= Spec}) -> spawn( ?MODULE, emit_message, [Spec, self(), Pid, Name]) end, Subscriptions).
+
+emit_message({every, N}, Self, Pid, Name) ->
+  Pid ! { Name, Self, {every, N}, ring_buffer:select(Self, N) }; % race warning!
+emit_message( Spec, Self, Pid, Name) ->
+  Pid ! { Name, Self, Spec }.
 
 is_valid_specification({loop}) -> true;
 is_valid_specification({empty}) -> true;
