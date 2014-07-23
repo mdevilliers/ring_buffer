@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export ([start_link/2]).
+-export ([start_link/3]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 % private
 -export ([emit_message/4]).
@@ -11,12 +11,12 @@
 -record (subscription, {pid , spec}).
 
 %% Public API
-start_link(Name, Length) when is_integer(Length), is_atom(Name) ->
-  gen_server:start(?MODULE, [Name, Length], []).
+start_link(Name, Length, Type) when is_integer(Length), is_atom(Name) ->
+  gen_server:start(?MODULE, [Name, Length, Type], []).
 
 % Private
-init([Name, Length]) ->
-	Adapter = ring_buffer_store:new(ets,Name),
+init([Name, Length, Type]) ->
+	Adapter = ring_buffer_store:new(Type,Name),
 	[Adapter:insert([{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
   {ok, #state{adapter = Adapter, 
               length = Length,

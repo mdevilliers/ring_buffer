@@ -1,13 +1,13 @@
 -module (ring_buffer_sup).
 
--export([start_link/0,new_ring_buffer/2]).
+-export([start_link/0,new_ring_buffer/3]).
 -export([init/1]).
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-new_ring_buffer(Name, Length) when is_atom(Name), is_integer(Length) ->
-	supervisor:start_child(?MODULE,[Name,Length]).
+new_ring_buffer(Name, Length, Type ) when is_atom(Name), is_integer(Length), is_atom(Type) ->
+	supervisor:start_child(?MODULE,[Name,Length,Type]).
 
 init([]) ->
 	Worker = { ring_buffer_server,{ring_buffer_server, start_link, []},

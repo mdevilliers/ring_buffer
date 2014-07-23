@@ -1,7 +1,8 @@
 -module(ring_buffer).
 
 -export([	new/1,
-			new/2, 
+			new/2,
+			new/3, 
 			add/2, 
 			select_all/1,
 			select/2, 
@@ -18,11 +19,22 @@
 
 %% API
 new(Name) when is_atom(Name) ->
-	new(Name, 512).
-new(Name, Length) when is_atom(Name),is_integer(Length) ->
+	new(Name, ets).
+new(Name, Length) when is_atom(Name), is_integer(Length) ->
+   new(Name, Length, ets);
+new(Name, ets) when is_atom(Name) ->
+	new(Name, 512, ets);
+new(Name, dets) when is_atom(Name) ->
+	new(Name, 512, dets).
+new(Name, Length, ets) when is_atom(Name),is_integer(Length) ->
+	do_new(Name, Length, ets);
+new(Name, Length, dets) when is_atom(Name),is_integer(Length) ->
+	do_new(Name, Length, dets).
+
+do_new(Name, Length, Type) ->
 	case find(Name) of
 		undefined ->
-			ring_buffer_sup:new_ring_buffer(Name, Length);
+			ring_buffer_sup:new_ring_buffer(Name, Length, Type);
 		{ok, Pid} -> {ok, Pid}
 	end.
 

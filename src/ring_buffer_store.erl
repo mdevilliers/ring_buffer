@@ -7,7 +7,7 @@ new(ets, Name) ->
   TableId = ets:new(Name, [ordered_set, named_table]),
   {?MODULE, ets, TableId}.
 
-get( Position, {_, ets, TableId }) ->
+get(Position, {_, ets, TableId }) ->
   [{_, Value }] = ets:slot(TableId, Position),
   Value.
 
