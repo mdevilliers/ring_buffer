@@ -184,12 +184,12 @@ filter_subscriptions_by_type(Message, _, Subscriptions) when is_list(Subscriptio
 
 emit_messages(_, []) -> ok ;
 emit_messages(Name, Subscriptions) when is_list(Subscriptions) ->
-  lists:map(fun(#subscription{pid = Pid, spec= Spec}) -> spawn( ?MODULE, emit_message, [Spec, self(), Pid, Name]) end, Subscriptions).
+  lists:map(fun(#subscription{pid = Pid, spec= Spec}) -> emit_message(Spec, self(), Pid, Name) end, Subscriptions).
 
 emit_message({every, N}, Self, Pid, Name) ->
-  Pid ! { Name, Self, {every, N}, ring_buffer:select(Self, N) }; % race warning!
+  spawn( fun() ->  Pid ! { Name, Self, {every, N}, ring_buffer:select(Self, N) } end);
 emit_message( Spec, Self, Pid, Name) ->
-  Pid ! { Name, Self, Spec }.
+  spawn( fun() -> Pid ! { Name, Self, Spec } end).
 
 is_valid_specification({loop}) -> true;
 is_valid_specification({empty}) -> true;
