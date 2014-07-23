@@ -4,9 +4,10 @@
 
 -export ([start_link/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+% private
 -export ([emit_message/4]).
 
--record(state, {table, length, name, cursor = 0, slots_full = 0 , subscriptions = []}).
+-record(state, {adapter, length, name, cursor = 0, slots_full = 0 , subscriptions = []}).
 -record (subscription, {pid , spec}).
 
 %% Public API
@@ -15,16 +16,16 @@ start_link(Name, Length) when is_integer(Length), is_atom(Name) ->
 
 % Private
 init([Name, Length]) ->
-	TableId = new(Name),
-	[insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
-  {ok, #state{table = TableId, 
+	Adapter = ring_buffer_store:new(ets,Name),
+	[Adapter:insert([{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
+  {ok, #state{adapter = Adapter, 
               length = Length,
               name = Name}}.
 
-handle_call(clear, _,  #state{table = TableId, length = Length, name = Name, subscriptions = Subscriptions}) ->
-  [insert(TableId, [{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
+handle_call(clear, _,  #state{adapter = Adapter, length = Length, name = Name, subscriptions = Subscriptions}) ->
+  [Adapter:insert([{N, <<>>}]) || N <- lists:seq(1, Length - 1)],
   emit({empty}, Name, 1, Subscriptions),
-  {reply, ok, #state{table = TableId, 
+  {reply, ok, #state{adapter = Adapter, 
               length = Length,
               name = Name}};
 
@@ -32,8 +33,8 @@ handle_call(count, _,  #state{slots_full = Count} = State) -> {reply, Count, Sta
 
 handle_call(size, _,  #state{length = Length} = State) -> {reply, Length, State};
 
-handle_call(delete, _,  #state{table = TableId} = State) ->
-  delete(TableId),
+handle_call(delete, _,  #state{adapter = Adapter} = State) ->
+  Adapter:delete(),
   {stop, normal, shutdown_ok, State};
 
 handle_call({select, Count}, _, State) when Count < 0 ->
@@ -44,28 +45,28 @@ handle_call({select, Count}, _, #state{ length = Length, cursor = Cursor, slots_
                                   when Count > Cursor rem Length, Slots_full < Length ->
  {reply, {error, invalid_length}, State};
 
-handle_call({select, Count}, _, #state{ table = TableId, 
+handle_call({select, Count}, _, #state{ adapter = Adapter, 
                                         length = Length, 
                                         cursor = Cursor } = State) ->
  Cursor1 = Cursor rem Length,
- Results = scan(Length, Cursor1, Count, TableId),
+ Results = scan(Length, Cursor1, Count, Adapter),
  {reply, Results, State};
 
-handle_call(select_all, _, #state{  table = TableId, 
+handle_call(select_all, _, #state{  adapter = Adapter,
                                     length = Length, 
                                     cursor = Cursor } = State) ->
  Cursor1 = Cursor rem Length,
- Range = scan(Length, Cursor1, Length, TableId),
+ Range = scan(Length, Cursor1, Length, Adapter),
  {reply, Range, State};
 
-handle_call({add, Data}, _, #state{    table = TableId,
+handle_call({add, Data}, _, #state{    adapter = Adapter,
                                        length = Length, 
                                        cursor = Cursor,
                                        slots_full = Count,
                                        name = Name,
                                        subscriptions = Subscriptions } = State) ->
   Current = Cursor rem Length,
-  insert(TableId, {Current, Data}),
+  Adapter:insert({Current, Data}),
 
   Next = Cursor + 1 rem Length,
 
@@ -127,36 +128,22 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 % helpers
-scan(Length, Position, MaxResults, TableId) when is_integer(Length), 
+scan(Length, Position, MaxResults, Adapter) when is_integer(Length), 
                                                  is_integer(Position), 
                                                  is_integer(MaxResults),
                                                  MaxResults =< Length ->
-  lists:reverse(get_range(Length, Position-1, MaxResults, TableId, [])).  
+  lists:reverse(get_range(Length, Position-1, MaxResults, Adapter, [])).  
 
 get_range(_, _, 0,_, Acc) ->
   Acc;
-get_range(TotalSlots, -1, MaxResults, TableId, Acc) ->
-  get_range(TotalSlots, TotalSlots-1, MaxResults, TableId, Acc);
-get_range(TotalSlots, Position, MaxResults, TableId, Acc) ->
-  Value = get(TableId, Position),
-  get_range(TotalSlots,Position - 1, MaxResults -1, TableId,[Value|Acc]).
+get_range(TotalSlots, -1, MaxResults, Adapter, Acc) ->
+  get_range(TotalSlots, TotalSlots-1, MaxResults, Adapter, Acc);
+get_range(TotalSlots, Position, MaxResults, Adapter, Acc) ->
+  Value = Adapter:get(Position),
+  get_range(TotalSlots,Position - 1, MaxResults -1, Adapter,[Value|Acc]).
 
 track_full_slots(TotalSlots, TotalSlots) when is_integer(TotalSlots)-> TotalSlots;
 track_full_slots(_, CurrentSlot) when is_integer(CurrentSlot)-> CurrentSlot + 1 .
-
-% ets implementation
-new(Name) ->
-  ets:new(Name, [ordered_set, named_table]).
-
-get(TableId, Position) ->
-  [{_, Value }] = ets:slot(TableId, Position),
-  Value.
-
-delete(TableId) ->
-  true = ets:delete(TableId).
-
-insert(TableId, Value) ->
-  ets:insert(TableId, Value).
 
 % subscription helpers
 remove_all_subscriptions_for_pid(Subscriptions, Pid) when is_pid(Pid), is_list(Subscriptions) ->

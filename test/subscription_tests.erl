@@ -8,7 +8,7 @@ add_and_remove_subscription_test() ->
 	ring_buffer_sup:start_link(),
 	Me = self(),
 	
-	% set uo and check if empty
+	% set up and check if empty
 	{ok, Ref} = ring_buffer:new(add_subscription_test),
 	{empty} = ring_buffer:list_subscriptions(Ref),
 	
