@@ -107,10 +107,7 @@ handle_call({unsubscribe_all, Pid}, _, #state{ subscriptions = Subscriptions} = 
 handle_call({list_subscriptions}, _, #state{ subscriptions = []} = State) ->
   {reply, {empty}, State};
 handle_call({list_subscriptions}, _, #state{ subscriptions = Subscriptions} = State) ->
-  {reply, {ok, Subscriptions}, State};
-
-handle_call(_Request, _From, State) ->
-  {reply, ok, State}.
+  {reply, {ok, Subscriptions}, State}.
 
 handle_cast(_Msg, State) ->
   {noreply, State}.
