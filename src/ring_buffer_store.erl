@@ -1,7 +1,7 @@
 -module (ring_buffer_store).
 -include_lib("stdlib/include/ms_transform.hrl").
 
--export ([new/2,get/2,delete/1,insert/2]).
+-export ([new/2,get/2,delete/1,insert/2,find/2]).
 
 new(ets, Name) ->
   TableId = ets:new(Name, [ordered_set, named_table]),
@@ -27,3 +27,16 @@ insert(Value,{_, ets, TableId }) ->
   ets:insert(TableId, Value);
 insert(Value,{_, dets, TableId }) ->
   dets:insert(TableId, Value).
+
+find(Name, ets) when is_atom(Name) ->
+  case ets:info(Name, owner) of
+    undefined ->
+      undefined;
+    Pid -> {ok, Pid}
+  end;
+find(Name, dets) when is_atom(Name) ->
+  case dets:open_file(Name) of
+    {error, _} ->
+      undefined;
+    {ok, Pid} -> {ok, Pid}
+  end.

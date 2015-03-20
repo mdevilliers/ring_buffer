@@ -114,7 +114,6 @@ do_reset_state_test(Impl) ->
 	ring_buffer:delete(Ref).
 
 ets_starting_multiple_ring_buffers_of_the_same_name_test() -> do_starting_multiple_ring_buffers_of_the_same_name(ets). 
-% dets_starting_multiple_ring_buffers_of_the_same_name_test()-> do_starting_multiple_ring_buffers_of_the_same_name(dets).
 
 do_starting_multiple_ring_buffers_of_the_same_name(Impl)->
 	ring_buffer_sup:start_link(),
@@ -123,11 +122,17 @@ do_starting_multiple_ring_buffers_of_the_same_name(Impl)->
 	{ok, Ref} = ring_buffer:new(starting_multiple_ring_buffers_of_the_same_name_test, 5, Impl),
 	{ok, Ref} = ring_buffer:new(starting_multiple_ring_buffers_of_the_same_name_test, 5, Impl),
 	{ok, Ref} = ring_buffer:new(starting_multiple_ring_buffers_of_the_same_name_test, 5, Impl),
-	{ok, Ref} = ring_buffer:find(starting_multiple_ring_buffers_of_the_same_name_test),
+	{ok, Ref} = ring_buffer:find(starting_multiple_ring_buffers_of_the_same_name_test, Impl),
     ring_buffer:delete(Ref).
 
-exists_on_non_existent_buffer_test() ->
-	undefined = ring_buffer:find(does_not_exist).
+find_is_undefined_on_non_existent_buffer_test() ->
+	undefined = ring_buffer:find(does_not_exist_dets, dets),
+	undefined = ring_buffer:find(does_not_exist_ets, ets).
+
+dets_will_find_existing_buffer_test() ->
+	ring_buffer_sup:start_link(),
+	{ok, _} = ring_buffer:new(dets_will_find_existing_buffer_test, 5, dets),
+	{ok, _} = ring_buffer:find(dets_will_find_existing_buffer_test, dets).
 
 large_test_test() ->
     {timeout, 30, fun() -> large_buffer() end }.
